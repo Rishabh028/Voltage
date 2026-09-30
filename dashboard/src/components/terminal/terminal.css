@@ -1,0 +1,23 @@
+@keyframes slideUp {
+  from { transform: translateY(4px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.terminal-line {
+  animation: slideUp 120ms ease-out forwards;
+}
+
+.terminal-cursor::after {
+  content: '█';
+  animation: blink 1s step-start infinite;
+  color: hsl(var(--accent-signal));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-line { animation: none; opacity: 1; transform: none; }
+  .terminal-cursor::after { animation: none; opacity: 1; }
+}
