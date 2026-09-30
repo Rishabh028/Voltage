@@ -1,0 +1,149 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Organization {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String
+  slug             String       @unique
+  plan             String       @default("free")
+  stripeCustomerId String?      @map("stripe_customer_id")
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  members          OrgMember[]
+  projects         Project[]
+  usageEvents      UsageEvent[]
+
+  @@map("organizations")
+}
+
+model User {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String      @unique
+  passwordHash String?     @map("password_hash")
+  githubId     String?     @unique @map("github_id")
+  googleId     String?     @unique @map("google_id")
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  memberships  OrgMember[]
+
+  @@map("users")
+}
+
+model OrgMember {
+  orgId        String       @map("org_id") @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  role         String       // 'owner', 'admin', 'member'
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([orgId, userId])
+  @@map("org_members")
+}
+
+model Project {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId         String        @map("org_id") @db.Uuid
+  name          String
+  repoProvider  String        @default("github") @map("repo_provider")
+  repoFullName  String        @map("repo_full_name")
+  defaultBranch String        @default("main") @map("default_branch")
+  rootDirectory String?       @default(".") @map("root_directory")
+  buildCommand  String?       @map("build_command")
+  startCommand  String?       @map("start_command")
+  framework     String?
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  organization  Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  environments  Environment[]
+  deployments   Deployment[]
+  domains       Domain[]
+  usageEvents   UsageEvent[]
+
+  @@map("projects")
+}
+
+model Environment {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String       @map("project_id") @db.Uuid
+  name        String       // 'production', 'preview', custom
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  envVars     EnvVar[]
+  deployments Deployment[]
+
+  @@map("environments")
+}
+
+model EnvVar {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  environmentId  String      @map("environment_id") @db.Uuid
+  key            String
+  valueEncrypted Bytes       @map("value_encrypted")
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  environment    Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+
+  @@unique([environmentId, key])
+  @@map("env_vars")
+}
+
+model Deployment {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId       String       @map("project_id") @db.Uuid
+  environmentId   String?      @map("environment_id") @db.Uuid
+  commitSha       String       @map("commit_sha")
+  commitMessage   String?      @map("commit_message")
+  branch          String?
+  status          String       @default("queued") // 'queued', 'building', 'deploying', 'ready', 'failed', 'canceled'
+  imageTag        String?      @map("image_tag")
+  buildStartedAt  DateTime?    @map("build_started_at") @db.Timestamptz
+  buildFinishedAt DateTime?    @map("build_finished_at") @db.Timestamptz
+  isProduction    Boolean?     @default(false) @map("is_production")
+  previewUrl      String?      @map("preview_url")
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  project         Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment     Environment? @relation(fields: [environmentId], references: [id])
+  buildLogs       BuildLog[]
+  domains         Domain[]
+
+  @@map("deployments")
+}
+
+model BuildLog {
+  id           BigInt     @id @default(autoincrement())
+  deploymentId String     @map("deployment_id") @db.Uuid
+  line         String
+  ts           DateTime   @default(now()) @db.Timestamptz
+  deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+
+  @@map("build_logs")
+}
+
+model Domain {
+  id                 String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId          String      @map("project_id") @db.Uuid
+  hostname           String      @unique
+  verified           Boolean?    @default(false)
+  certStatus         String?     @default("pending") @map("cert_status")
+  activeDeploymentId String?     @map("active_deployment_id") @db.Uuid
+  createdAt          DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  project            Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  activeDeployment   Deployment? @relation(fields: [activeDeploymentId], references: [id])
+
+  @@map("domains")
+}
+
+model UsageEvent {
+  id         BigInt        @id @default(autoincrement())
+  orgId      String?       @map("org_id") @db.Uuid
+  projectId  String?       @map("project_id") @db.Uuid
+  type       String        // 'build_minutes', 'bandwidth_gb', 'compute_hours'
+  quantity   Float
+  recordedAt DateTime      @default(now()) @map("recorded_at") @db.Timestamptz
+  organization Organization? @relation(fields: [orgId], references: [id])
+  project      Project?      @relation(fields: [projectId], references: [id])
+
+  @@map("usage_events")
+}
