@@ -1,0 +1,28 @@
+{
+  "name": "@voltage/reverse-proxy",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.500.0",
+    "ioredis": "^5.3.2",
+    "lru-cache": "^10.2.0",
+    "mime-types": "^2.1.35",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/mime-types": "^2.1.4",
+    "@types/node": "^20.11.16",
+    "@voltage/shared-types": "*",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.2"
+  }
+}
