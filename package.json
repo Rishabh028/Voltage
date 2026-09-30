@@ -1,0 +1,21 @@
+{
+  "name": "voltage",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "control-plane",
+    "reverse-proxy",
+    "dashboard"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build:types": "npm run build -w packages/shared-types",
+    "build:builder": "docker build -t voltage-builder:latest ./builder-image",
+    "dev": "docker compose up -d redis minio createbuckets && echo 'Redis + MinIO started. Run services individually.'"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
